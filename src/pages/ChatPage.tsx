@@ -6,8 +6,9 @@ import { Header } from '../components/layout/Header';
 import { ChatWindow } from '../components/chat/ChatWindow';
 import { MessageComposer } from '../components/chat/MessageComposer';
 import { ModelSelector } from '../components/chat/ModelSelector';
+import { ConversationList } from '../components/chat/ConversationList';
 import type { Conversation, Message } from '../types';
-import { Plus, Sidebar } from 'lucide-react';
+import { Plus } from 'lucide-react';
 
 export function ChatPage() {
   const { id: conversationId } = useParams();
@@ -151,18 +152,27 @@ export function ChatPage() {
       />
 
       <div className="flex-1 flex overflow-hidden">
-        <div className={`${sidebarOpen ? 'w-64' : 'w-0'} bg-white dark:bg-slate-800 border-r border-slate-200 dark:border-slate-700 overflow-hidden transition-all duration-300`}>
+        <div className={`${sidebarOpen ? 'w-80' : 'w-0'} bg-white dark:bg-slate-800 border-r border-slate-200 dark:border-slate-700 overflow-hidden transition-all duration-300 flex flex-col`}>
           <div className="p-4 border-b border-slate-200 dark:border-slate-700">
             <button
               onClick={createNewConversation}
-              className="w-full flex items-center justify-center gap-2 px-4 py-2 bg-blue-500 hover:bg-blue-600 text-white rounded-lg transition-colors"
+              className="w-full flex items-center justify-center gap-2 px-4 py-2 bg-blue-500 hover:bg-blue-600 text-white rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+              disabled={!selectedModelId}
+              title={!selectedModelId ? 'Please wait for models to load' : 'Create new conversation'}
             >
               <Plus className="w-4 h-4" />
               New Chat
             </button>
           </div>
-          <div className="overflow-y-auto p-4 flex-1">
-            <p className="text-sm text-slate-500 dark:text-slate-400">Conversation history</p>
+          <div className="flex-1 overflow-hidden">
+            <ConversationList
+              currentConversationId={conversationId}
+              onConversationDeleted={() => {
+                setConversation(null);
+                setMessages([]);
+                navigate('/chat');
+              }}
+            />
           </div>
         </div>
 

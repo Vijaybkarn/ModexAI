@@ -2,7 +2,7 @@ import { createClient } from 'npm:@supabase/supabase-js@2.57.4';
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
-  'Access-Control-Allow-Methods': 'GET, POST, PUT, DELETE, OPTIONS',
+  'Access-Control-Allow-Methods': 'GET, POST, PUT, DELETE, OPTIONS, PATCH',
   'Access-Control-Allow-Headers': 'Content-Type, Authorization, X-Client-Info, Apikey',
 };
 
@@ -157,6 +157,90 @@ Deno.serve(async (req: Request) => {
 
       return new Response(
         JSON.stringify(conversation),
+        {
+          headers: {
+            ...corsHeaders,
+            'Content-Type': 'application/json',
+          },
+        }
+      );
+    }
+
+    // PATCH /conversations/:id - Update conversation
+    if (req.method === 'PATCH' && cleanPath.length === 2) {
+      const conversationId = cleanPath[1];
+      const { title } = await req.json();
+
+      // Verify user owns this conversation
+      const { data: existing } = await supabase
+        .from('conversations')
+        .select('id')
+        .eq('id', conversationId)
+        .eq('user_id', user.id)
+        .maybeSingle();
+
+      if (!existing) {
+        return new Response(
+          JSON.stringify({ error: 'Conversation not found' }),
+          { status: 404, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        );
+      }
+
+      const { data: conversation, error } = await supabase
+        .from('conversations')
+        .update({ title, updated_at: new Date().toISOString() })
+        .eq('id', conversationId)
+        .select()
+        .single();
+
+      if (error) throw error;
+
+      return new Response(
+        JSON.stringify(conversation),
+        {
+          headers: {
+            ...corsHeaders,
+            'Content-Type': 'application/json',
+          },
+        }
+      );
+    }
+
+    // DELETE /conversations/:id - Delete conversation
+    if (req.method === 'DELETE' && cleanPath.length === 2) {
+      const conversationId = cleanPath[1];
+
+      // Verify user owns this conversation
+      const { data: existing } = await supabase
+        .from('conversations')
+        .select('id')
+        .eq('id', conversationId)
+        .eq('user_id', user.id)
+        .maybeSingle();
+
+      if (!existing) {
+        return new Response(
+          JSON.stringify({ error: 'Conversation not found' }),
+          { status: 404, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        );
+      }
+
+      // Delete associated messages first
+      await supabase
+        .from('messages')
+        .delete()
+        .eq('conversation_id', conversationId);
+
+      // Delete conversation
+      const { error } = await supabase
+        .from('conversations')
+        .delete()
+        .eq('id', conversationId);
+
+      if (error) throw error;
+
+      return new Response(
+        JSON.stringify({ success: true }),
         {
           headers: {
             ...corsHeaders,
