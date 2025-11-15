@@ -1,3 +1,4 @@
+import { useCallback } from 'react';
 import { useAuth } from '../contexts/AuthContext';
 
 const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:3001';
@@ -7,10 +8,10 @@ const SUPABASE_ANON_KEY = import.meta.env.VITE_SUPABASE_ANON_KEY;
 export function useApi() {
   const { session } = useAuth();
 
-  async function apiRequest<T>(
+  const apiRequest = useCallback(async <T>(
     endpoint: string,
     options: RequestInit = {}
-  ): Promise<T> {
+  ): Promise<T> => {
     const token = session?.access_token;
 
     let url: string;
@@ -47,7 +48,7 @@ export function useApi() {
     }
 
     return response.json();
-  }
+  }, [session?.access_token]);
 
   return { apiRequest };
 }

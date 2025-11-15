@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useCallback } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import { useApi } from '../hooks/useApi';
@@ -22,15 +22,7 @@ export function ChatPage() {
   const [error, setError] = useState<string | null>(null);
   const [sidebarOpen, setSidebarOpen] = useState(true);
 
-  useEffect(() => {
-    if (!conversationId) {
-      createNewConversation();
-    } else {
-      loadConversation(conversationId);
-    }
-  }, [conversationId]);
-
-  const createNewConversation = async () => {
+  const createNewConversation = useCallback(async () => {
     try {
       const data = await apiRequest<Conversation>('/api/chat/conversations', {
         method: 'POST',
@@ -44,9 +36,9 @@ export function ChatPage() {
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to create conversation');
     }
-  };
+  }, [apiRequest, navigate]);
 
-  const loadConversation = async (convId: string) => {
+  const loadConversation = useCallback(async (convId: string) => {
     try {
       setLoading(true);
       const [convData, messagesData] = await Promise.all([
@@ -63,7 +55,15 @@ export function ChatPage() {
     } finally {
       setLoading(false);
     }
-  };
+  }, [apiRequest]);
+
+  useEffect(() => {
+    if (!conversationId) {
+      createNewConversation();
+    } else {
+      loadConversation(conversationId);
+    }
+  }, [conversationId, createNewConversation, loadConversation]);
 
   const handleSendMessage = async (message: string) => {
     if (!conversationId || !selectedModelId) return;

@@ -17,23 +17,37 @@ export function ModelSelector({ selectedModelId, onModelSelect, disabled }: Mode
   const { apiRequest } = useApi();
 
   useEffect(() => {
+    let cancelled = false;
+
     const fetchModels = async () => {
       try {
         setLoading(true);
         const data = await apiRequest<Model[]>('/api/models');
+
+        if (cancelled) return;
+
         setModels(data);
+
+        // Only auto-select if no model is selected AND we haven't set models yet
         if (data.length > 0 && !selectedModelId) {
           onModelSelect(data[0].id);
         }
       } catch (err) {
+        if (cancelled) return;
         setError(err instanceof Error ? err.message : 'Failed to load models');
       } finally {
-        setLoading(false);
+        if (!cancelled) {
+          setLoading(false);
+        }
       }
     };
 
     fetchModels();
-  }, [apiRequest, onModelSelect, selectedModelId]);
+
+    return () => {
+      cancelled = true;
+    };
+  }, []); // Empty dependency array - only run once on mount
 
   const selectedModel = models.find(m => m.id === selectedModelId);
 
