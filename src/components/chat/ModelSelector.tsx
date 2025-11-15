@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import type { Model } from '../../types';
 import { useApi } from '../../hooks/useApi';
-import { ChevronDown } from 'lucide-react';
+import { ChevronDown, Bot } from 'lucide-react';
 
 interface ModelSelectorProps {
   selectedModelId?: string;
@@ -57,7 +57,7 @@ export function ModelSelector({ selectedModelId, onModelSelect, disabled }: Mode
         disabled={disabled || loading || models.length === 0}
         className="px-3 py-1.5 bg-slate-100 dark:bg-slate-700 hover:bg-slate-200 dark:hover:bg-slate-600 border border-slate-300 dark:border-slate-600 rounded-lg flex items-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed transition-all text-xs"
       >
-        <div className="w-1.5 h-1.5 rounded-full bg-green-500 flex-shrink-0"></div>
+        <Bot className="w-4 h-4 text-blue-500 dark:text-blue-400 flex-shrink-0" />
         <span className="font-medium text-slate-700 dark:text-slate-300 truncate max-w-[150px]">
           {loading ? 'Loading...' : error ? 'Error' : selectedModel?.name || 'Select model'}
         </span>

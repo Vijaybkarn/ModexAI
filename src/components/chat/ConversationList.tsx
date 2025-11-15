@@ -189,7 +189,14 @@ export function ConversationList({ currentConversationId, onConversationDeleted 
                           {conversation.title || 'Untitled Chat'}
                         </p>
                         <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">
-                          {new Date(conversation.updated_at || conversation.created_at).toLocaleDateString()}
+                          {new Date(conversation.updated_at || conversation.created_at).toLocaleString('en-IN', {
+                            timeZone: 'Asia/Kolkata',
+                            month: 'short',
+                            day: 'numeric',
+                            hour: '2-digit',
+                            minute: '2-digit',
+                            hour12: true
+                          })} IST
                         </p>
                       </div>
 

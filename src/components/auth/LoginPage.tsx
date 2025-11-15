@@ -50,12 +50,11 @@ export function LoginPage() {
       <div className="w-full max-w-md">
         <div className="bg-white dark:bg-slate-800 rounded-2xl shadow-2xl p-8">
           <div className="flex items-center justify-center mb-8">
-            <div className="w-12 h-12 bg-gradient-to-br from-blue-500 to-blue-600 rounded-lg flex items-center justify-center">
-              <MessageSquare className="w-7 h-7 text-white" />
-            </div>
-            <h1 className="ml-3 text-2xl font-bold text-slate-900 dark:text-white">
-              AI Chat
-            </h1>
+            <img
+              src="/Gosetle-Logo-ai.png"
+              alt="Gosetle AI"
+              className="h-16 w-auto object-contain"
+            />
           </div>
 
           <p className="text-center text-slate-600 dark:text-slate-400 mb-8">

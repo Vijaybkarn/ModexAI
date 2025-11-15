@@ -31,7 +31,11 @@ export function Header({ onMenuToggle, title = 'AI Chat' }: HeaderProps) {
           >
             <Menu className="w-5 h-5 text-slate-600 dark:text-slate-400" />
           </button>
-          <h1 className="text-lg font-semibold text-slate-900 dark:text-white">{title}</h1>
+          <img
+            src="/Gosetle-Logo-ai.png"
+            alt="Gosetle AI"
+            className="h-8 w-auto object-contain"
+          />
         </div>
 
         <div className="flex items-center gap-2">

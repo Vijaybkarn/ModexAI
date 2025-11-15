@@ -24,9 +24,9 @@ export function MessageBubble({ message, showLatency, isGenerating = false }: Me
       <div
         className={`max-w-[75%] lg:max-w-[65%] ${
           isUser
-            ? 'bg-blue-600 text-white rounded-2xl rounded-tr-md'
-            : 'bg-slate-200 dark:bg-slate-700 text-slate-900 dark:text-white rounded-2xl rounded-tl-md'
-        } px-4 py-3 shadow-sm hover:shadow-md transition-all duration-200`}
+            ? 'bg-blue-600 text-white rounded-2xl rounded-tr-md shadow-sm hover:shadow-md px-4 py-3'
+            : 'text-slate-900 dark:text-white py-2'
+        } transition-all duration-200`}
       >
         <p className="text-sm leading-relaxed whitespace-pre-wrap break-words">{message.content}</p>
         <div className="flex items-center justify-between gap-3 mt-2">

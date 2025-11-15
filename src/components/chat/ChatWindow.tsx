@@ -49,14 +49,13 @@ export function ChatWindow({ messages, isLoading, isGenerating = false }: ChatWi
             />
           );
         })}
-        {isLoading && (
-          <div className="flex justify-start mb-4">
-            <div className="bg-slate-200 dark:bg-slate-700 rounded-lg px-4 py-3 max-w-xs">
-              <div className="flex gap-2 items-center">
-                <div className="w-2 h-2 bg-slate-500 rounded-full animate-bounce" style={{ animationDelay: '0ms' }}></div>
-                <div className="w-2 h-2 bg-slate-500 rounded-full animate-bounce" style={{ animationDelay: '150ms' }}></div>
-                <div className="w-2 h-2 bg-slate-500 rounded-full animate-bounce" style={{ animationDelay: '300ms' }}></div>
-              </div>
+        {isGenerating && (
+          <div className="flex justify-start mb-4 items-center gap-2">
+            <span className="text-sm text-slate-600 dark:text-slate-400">Thinking</span>
+            <div className="flex gap-1 items-center">
+              <div className="w-1.5 h-1.5 bg-slate-500 dark:bg-slate-400 rounded-full animate-bounce" style={{ animationDelay: '0ms' }}></div>
+              <div className="w-1.5 h-1.5 bg-slate-500 dark:bg-slate-400 rounded-full animate-bounce" style={{ animationDelay: '150ms' }}></div>
+              <div className="w-1.5 h-1.5 bg-slate-500 dark:bg-slate-400 rounded-full animate-bounce" style={{ animationDelay: '300ms' }}></div>
             </div>
           </div>
         )}
