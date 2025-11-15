@@ -12,7 +12,7 @@ import { Plus, Sidebar } from 'lucide-react';
 export function ChatPage() {
   const { id: conversationId } = useParams();
   const navigate = useNavigate();
-  const { user } = useAuth();
+  const { user, session } = useAuth();
   const { apiRequest } = useApi();
 
   const [conversation, setConversation] = useState<Conversation | null>(null);
@@ -82,9 +82,19 @@ export function ChatPage() {
 
       setMessages(prev => [...prev, userMessage]);
 
-      const eventSource = new EventSource(
-        `/api/chat?conversation_id=${conversationId}&message=${encodeURIComponent(message)}&model_id=${selectedModelId}`
-      );
+      // Build the SSE URL with proper API base and token
+      const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:3001';
+      const token = session?.access_token || '';
+
+      // Construct URL based on environment (Edge Functions vs local backend)
+      let sseUrl: string;
+      if (API_BASE_URL.includes('supabase.co/functions')) {
+        sseUrl = `${API_BASE_URL}/chat?conversation_id=${conversationId}&message=${encodeURIComponent(message)}&model_id=${selectedModelId}&token=${encodeURIComponent(token)}`;
+      } else {
+        sseUrl = `${API_BASE_URL}/api/chat?conversation_id=${conversationId}&message=${encodeURIComponent(message)}&model_id=${selectedModelId}&token=${encodeURIComponent(token)}`;
+      }
+
+      const eventSource = new EventSource(sseUrl);
 
       let assistantMessage: Message = {
         id: `temp-assistant-${Date.now()}`,

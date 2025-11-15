@@ -21,15 +21,24 @@ Deno.serve(async (req: Request) => {
     const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
     const supabase = createClient(supabaseUrl, supabaseServiceKey);
 
+    // Get token from Authorization header or query parameter (for EventSource)
+    const url = new URL(req.url);
+    let token = '';
+
     const authHeader = req.headers.get('Authorization');
-    if (!authHeader) {
+    if (authHeader) {
+      token = authHeader.replace('Bearer ', '');
+    } else {
+      // EventSource can't send custom headers, so check query param
+      token = url.searchParams.get('token') || '';
+    }
+
+    if (!token) {
       return new Response(
-        JSON.stringify({ error: 'Missing authorization header' }),
+        JSON.stringify({ error: 'Missing authorization token' }),
         { status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
-
-    const token = authHeader.replace('Bearer ', '');
     const { data: { user }, error: authError } = await supabase.auth.getUser(token);
 
     if (authError || !user) {
@@ -39,13 +48,54 @@ Deno.serve(async (req: Request) => {
       );
     }
 
-    const { conversation_id, model_id, message, stream = true } = await req.json();
+    // Parse query parameters for GET (EventSource) or JSON body for POST
+    let conversation_id: string;
+    let model_id: string;
+    let message: string;
+    let stream = true;
+
+    if (req.method === 'GET') {
+      // EventSource sends GET requests with query parameters
+      conversation_id = url.searchParams.get('conversation_id') || '';
+      model_id = url.searchParams.get('model_id') || '';
+      message = url.searchParams.get('message') || '';
+      stream = true; // Always stream for GET requests
+    } else {
+      // POST requests with JSON body
+      const body = await req.json();
+      conversation_id = body.conversation_id;
+      model_id = body.model_id;
+      message = body.message;
+      stream = body.stream !== false;
+    }
+
+    if (!conversation_id || !model_id || !message) {
+      return new Response(
+        JSON.stringify({ error: 'Missing required parameters' }),
+        { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
+
+    // Verify user owns this conversation
+    const { data: conversation } = await supabase
+      .from('conversations')
+      .select('id')
+      .eq('id', conversation_id)
+      .eq('user_id', user.id)
+      .maybeSingle();
+
+    if (!conversation) {
+      return new Response(
+        JSON.stringify({ error: 'Conversation not found' }),
+        { status: 404, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
 
     const { data: model } = await supabase
       .from('models')
       .select('*, ollama_endpoints(*)')
       .eq('id', model_id)
-      .single();
+      .maybeSingle();
 
     if (!model) {
       return new Response(
@@ -54,6 +104,7 @@ Deno.serve(async (req: Request) => {
       );
     }
 
+    // Save user message
     const { data: userMessage } = await supabase
       .from('messages')
       .insert({
@@ -67,6 +118,7 @@ Deno.serve(async (req: Request) => {
     const startTime = Date.now();
 
     if (stream) {
+      // Streaming response (for EventSource)
       const ollamaResponse = await fetch(`${model.ollama_endpoints.base_url}/api/generate`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -79,7 +131,7 @@ Deno.serve(async (req: Request) => {
       });
 
       if (!ollamaResponse.ok) {
-        throw new Error('Ollama API failed');
+        throw new Error(`Ollama API failed: ${ollamaResponse.status}`);
       }
 
       const reader = ollamaResponse.body?.getReader();
@@ -110,19 +162,22 @@ Deno.serve(async (req: Request) => {
                     const data = JSON.parse(line);
                     if (data.response) {
                       fullResponse += data.response;
-                      controller.enqueue(encoder.encode(`data: ${JSON.stringify({ content: data.response, done: data.done })}\n\n`));
+                      // Send token to client
+                      controller.enqueue(encoder.encode(`data: ${JSON.stringify({ token: data.response, done: false })}\n\n`));
                     }
 
                     if (data.done) {
                       const responseTime = Date.now() - startTime;
 
-                      await supabase.from('messages').insert({
+                      // Save assistant message
+                      const { data: assistantMessage } = await supabase.from('messages').insert({
                         conversation_id,
                         role: 'assistant',
                         content: fullResponse,
                         tokens: data.eval_count
-                      });
+                      }).select().single();
 
+                      // Log usage
                       await supabase.from('usage_logs').insert({
                         user_id: user.id,
                         model_id,
@@ -131,7 +186,18 @@ Deno.serve(async (req: Request) => {
                         response_time_ms: responseTime
                       });
 
-                      controller.enqueue(encoder.encode('data: [DONE]\n\n'));
+                      // Update conversation timestamp
+                      await supabase.from('conversations')
+                        .update({ updated_at: new Date().toISOString() })
+                        .eq('id', conversation_id);
+
+                      // Send completion message with message ID
+                      controller.enqueue(encoder.encode(`data: ${JSON.stringify({
+                        done: true,
+                        message_id: assistantMessage?.id,
+                        tokens_used: data.eval_count
+                      })}\n\n`));
+
                       controller.close();
                       return;
                     }
@@ -142,6 +208,8 @@ Deno.serve(async (req: Request) => {
               }
             }
           } catch (error) {
+            console.error('Stream error:', error);
+            controller.enqueue(encoder.encode(`data: ${JSON.stringify({ error: error.message })}\n\n`));
             controller.error(error);
           } finally {
             reader.releaseLock();
@@ -158,6 +226,7 @@ Deno.serve(async (req: Request) => {
         },
       });
     } else {
+      // Non-streaming response
       const ollamaResponse = await fetch(`${model.ollama_endpoints.base_url}/api/generate`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -170,7 +239,7 @@ Deno.serve(async (req: Request) => {
       });
 
       if (!ollamaResponse.ok) {
-        throw new Error('Ollama API failed');
+        throw new Error(`Ollama API failed: ${ollamaResponse.status}`);
       }
 
       const responseData = await ollamaResponse.json();
@@ -195,6 +264,10 @@ Deno.serve(async (req: Request) => {
         response_time_ms: responseTime
       });
 
+      await supabase.from('conversations')
+        .update({ updated_at: new Date().toISOString() })
+        .eq('id', conversation_id);
+
       return new Response(
         JSON.stringify({
           userMessage,
@@ -210,6 +283,7 @@ Deno.serve(async (req: Request) => {
       );
     }
   } catch (error) {
+    console.error('Chat error:', error);
     return new Response(
       JSON.stringify({ error: error.message || 'Internal server error' }),
       {
