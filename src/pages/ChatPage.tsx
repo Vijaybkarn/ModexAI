@@ -24,10 +24,11 @@ export function ChatPage() {
 
   const createNewConversation = useCallback(async () => {
     try {
-      const data = await apiRequest<Conversation>('/api/chat/conversations', {
+      const data = await apiRequest<Conversation>('/api/conversations', {
         method: 'POST',
         body: JSON.stringify({
-          title: `Chat ${new Date().toLocaleDateString()}`
+          title: `Chat ${new Date().toLocaleDateString()}`,
+          model_id: selectedModelId || null
         })
       });
       navigate(`/chat/${data.id}`);
@@ -36,14 +37,14 @@ export function ChatPage() {
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to create conversation');
     }
-  }, [apiRequest, navigate]);
+  }, [apiRequest, navigate, selectedModelId]);
 
   const loadConversation = useCallback(async (convId: string) => {
     try {
       setLoading(true);
       const [convData, messagesData] = await Promise.all([
-        apiRequest<Conversation>(`/api/chat/conversations/${convId}`),
-        apiRequest<Message[]>(`/api/chat/conversations/${convId}/messages`)
+        apiRequest<Conversation>(`/api/conversations/${convId}`),
+        apiRequest<Message[]>(`/api/conversations/${convId}/messages`)
       ]);
       setConversation(convData);
       setMessages(messagesData);
@@ -58,12 +59,13 @@ export function ChatPage() {
   }, [apiRequest]);
 
   useEffect(() => {
-    if (!conversationId) {
-      createNewConversation();
-    } else {
+    if (conversationId) {
       loadConversation(conversationId);
+    } else if (selectedModelId) {
+      // Only auto-create conversation once a model is selected
+      createNewConversation();
     }
-  }, [conversationId, createNewConversation, loadConversation]);
+  }, [conversationId, selectedModelId, loadConversation, createNewConversation]);
 
   const handleSendMessage = async (message: string) => {
     if (!conversationId || !selectedModelId) return;

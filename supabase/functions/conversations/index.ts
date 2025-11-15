@@ -40,29 +40,16 @@ Deno.serve(async (req: Request) => {
     const url = new URL(req.url);
     const pathParts = url.pathname.split('/').filter(Boolean);
 
-    // GET /conversations - List user's conversations
-    if (req.method === 'GET' && pathParts.length === 2) {
-      const { data: conversations, error } = await supabase
-        .from('conversations')
-        .select('*')
-        .eq('user_id', user.id)
-        .order('updated_at', { ascending: false });
+    // pathParts for Edge Functions:
+    // /functions/v1/conversations → ['functions', 'v1', 'conversations']
+    // /functions/v1/conversations/123 → ['functions', 'v1', 'conversations', '123']
+    // /functions/v1/conversations/123/messages → ['functions', 'v1', 'conversations', '123', 'messages']
 
-      if (error) throw error;
-
-      return new Response(
-        JSON.stringify(conversations || []),
-        {
-          headers: {
-            ...corsHeaders,
-            'Content-Type': 'application/json',
-          },
-        }
-      );
-    }
+    // Remove 'functions' and 'v1' if present
+    const cleanPath = pathParts[0] === 'functions' ? pathParts.slice(2) : pathParts;
 
     // POST /conversations - Create new conversation
-    if (req.method === 'POST') {
+    if (req.method === 'POST' && cleanPath.length === 1) {
       const { title, model_id } = await req.json();
 
       const { data: conversation, error } = await supabase
@@ -89,26 +76,18 @@ Deno.serve(async (req: Request) => {
       );
     }
 
-    // GET /conversations/:id - Get specific conversation
-    if (req.method === 'GET' && pathParts.length === 3) {
-      const conversationId = pathParts[2];
-
-      const { data: conversation, error } = await supabase
+    // GET /conversations - List user's conversations
+    if (req.method === 'GET' && cleanPath.length === 1) {
+      const { data: conversations, error } = await supabase
         .from('conversations')
         .select('*')
-        .eq('id', conversationId)
         .eq('user_id', user.id)
-        .single();
+        .order('updated_at', { ascending: false });
 
-      if (error || !conversation) {
-        return new Response(
-          JSON.stringify({ error: 'Conversation not found' }),
-          { status: 404, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-        );
-      }
+      if (error) throw error;
 
       return new Response(
-        JSON.stringify(conversation),
+        JSON.stringify(conversations || []),
         {
           headers: {
             ...corsHeaders,
@@ -119,8 +98,8 @@ Deno.serve(async (req: Request) => {
     }
 
     // GET /conversations/:id/messages - Get messages for conversation
-    if (req.method === 'GET' && pathParts.length === 4 && pathParts[3] === 'messages') {
-      const conversationId = pathParts[2];
+    if (req.method === 'GET' && cleanPath.length === 3 && cleanPath[2] === 'messages') {
+      const conversationId = cleanPath[1];
 
       // Verify user owns this conversation
       const { data: conversation } = await supabase
@@ -128,7 +107,7 @@ Deno.serve(async (req: Request) => {
         .select('id')
         .eq('id', conversationId)
         .eq('user_id', user.id)
-        .single();
+        .maybeSingle();
 
       if (!conversation) {
         return new Response(
@@ -147,6 +126,37 @@ Deno.serve(async (req: Request) => {
 
       return new Response(
         JSON.stringify(messages || []),
+        {
+          headers: {
+            ...corsHeaders,
+            'Content-Type': 'application/json',
+          },
+        }
+      );
+    }
+
+    // GET /conversations/:id - Get specific conversation (must be after messages route)
+    if (req.method === 'GET' && cleanPath.length === 2) {
+      const conversationId = cleanPath[1];
+
+      const { data: conversation, error } = await supabase
+        .from('conversations')
+        .select('*')
+        .eq('id', conversationId)
+        .eq('user_id', user.id)
+        .maybeSingle();
+
+      if (error) throw error;
+
+      if (!conversation) {
+        return new Response(
+          JSON.stringify({ error: 'Conversation not found' }),
+          { status: 404, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        );
+      }
+
+      return new Response(
+        JSON.stringify(conversation),
         {
           headers: {
             ...corsHeaders,
