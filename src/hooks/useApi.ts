@@ -13,10 +13,14 @@ export function useApi() {
   ): Promise<T> {
     const token = session?.access_token;
 
-    let url = `${API_BASE_URL}${endpoint}`;
+    let url: string;
 
     if (API_BASE_URL.includes('supabase.co/functions')) {
-      url = endpoint.replace('/api/', `${API_BASE_URL}/`);
+      const functionPath = endpoint.replace('/api/', '').split('/')[0];
+      const remainingPath = endpoint.replace('/api/' + functionPath, '');
+      url = `${API_BASE_URL}/${functionPath}${remainingPath || ''}`;
+    } else {
+      url = `${API_BASE_URL}${endpoint}`;
     }
 
     const headers: HeadersInit = {
