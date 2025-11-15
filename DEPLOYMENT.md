@@ -1,14 +1,48 @@
-# Deployment Guide
+# Production Deployment Guide - Bolt.new Hosting
 
-This guide covers deploying the AI Chat Platform to various environments.
+## ✅ Current Status - DEPLOYED
 
-## Prerequisites
+**Hosted URL:** https://bablooqa-gosetlegpt-l0ai.bolt.host
 
-- Docker & Docker Compose installed
-- Supabase project configured with database migrations applied
-- Ollama instance(s) running (local or hosted)
-- Domain name (for production)
-- SSL certificate (for HTTPS)
+**API Backend:** Supabase Edge Functions
+
+**Status:** ✅ Production Ready (after OAuth configuration)
+
+## 🚨 CRITICAL: Google OAuth Setup Required
+
+To enable login on the hosted application, you MUST configure Google OAuth redirect URLs:
+
+### Step 1: Access Google Cloud Console
+
+1. Go to [Google Cloud Console](https://console.cloud.google.com/)
+2. Select project: **"Gosetle® AI"**
+3. Navigate to: **APIs & Services** → **Credentials**
+4. Find: **"Client ID for Web application"**
+
+### Step 2: Add Authorized JavaScript Origins
+
+Add these URLs:
+```
+https://bablooqa-gosetlegpt-l0ai.bolt.host
+https://uohfnovafbtnnnztrbmv.supabase.co
+```
+
+### Step 3: Add Authorized Redirect URIs
+
+Add these URLs:
+```
+https://bablooqa-gosetlegpt-l0ai.bolt.host/auth/callback
+https://uohfnovafbtnnnztrbmv.supabase.co/auth/v1/callback
+```
+
+### Step 4: Save and Wait
+
+- Click **Save**
+- Wait 5-10 minutes for changes to propagate
+- Clear browser cache
+- Test login
+
+## 🌐 Deployed Architecture
 
 ## Local Development
 
