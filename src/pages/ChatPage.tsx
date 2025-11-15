@@ -105,6 +105,9 @@ export function ChatPage() {
         created_at: new Date().toISOString()
       };
 
+      // Add empty assistant message to trigger its appearance
+      setMessages(prev => [...prev, assistantMessage]);
+
       eventSource.addEventListener('message', (event) => {
         try {
           const data = JSON.parse(event.data);
@@ -113,7 +116,10 @@ export function ChatPage() {
             assistantMessage.content += data.token;
             setMessages(prev => {
               const updated = [...prev];
-              updated[updated.length - 1] = assistantMessage;
+              const lastMsg = updated[updated.length - 1];
+              if (lastMsg && lastMsg.role === 'assistant') {
+                updated[updated.length - 1] = { ...assistantMessage };
+              }
               return updated;
             });
           }
@@ -151,8 +157,13 @@ export function ChatPage() {
         title={conversation?.title || 'Chat'}
       />
 
-      <div className="flex-1 flex overflow-hidden">
-        <div className={`${sidebarOpen ? 'w-80' : 'w-0'} bg-white dark:bg-slate-800 border-r border-slate-200 dark:border-slate-700 overflow-hidden transition-all duration-300 flex flex-col`}>
+      <div className="flex-1 flex overflow-hidden relative">
+        {/* Sidebar */}
+        <div
+          className={`${
+            sidebarOpen ? 'w-80 opacity-100' : 'w-0 opacity-0'
+          } bg-white dark:bg-slate-800 border-r border-slate-200 dark:border-slate-700 overflow-hidden transition-all duration-300 ease-in-out flex flex-col`}
+        >
           <div className="p-4 border-b border-slate-200 dark:border-slate-700">
             <button
               onClick={createNewConversation}
@@ -176,31 +187,35 @@ export function ChatPage() {
           </div>
         </div>
 
-        <div className="flex-1 flex flex-col">
+        {/* Main Chat Area */}
+        <div className="flex-1 flex flex-col min-w-0 bg-slate-50 dark:bg-slate-900">
           {error && (
-            <div className="bg-red-50 dark:bg-red-900/20 border-b border-red-200 dark:border-red-800 px-4 py-3 text-red-700 dark:text-red-200 text-sm">
-              {error}
+            <div className="bg-red-50 dark:bg-red-900/20 border-b border-red-200 dark:border-red-800 px-4 py-3 text-red-700 dark:text-red-200 text-sm flex items-center justify-between">
+              <span>{error}</span>
               <button
                 onClick={() => setError(null)}
-                className="ml-2 underline hover:no-underline"
+                className="px-3 py-1 text-xs bg-red-100 dark:bg-red-900/40 hover:bg-red-200 dark:hover:bg-red-900/60 rounded-md transition-colors"
               >
                 Dismiss
               </button>
             </div>
           )}
 
-          <div className="flex-1 flex flex-col">
-            <div className="bg-white dark:bg-slate-800 border-b border-slate-200 dark:border-slate-700 p-4">
+          {/* Model Selector Bar */}
+          <div className="bg-white dark:bg-slate-800 border-b border-slate-200 dark:border-slate-700 px-4 py-3 shadow-sm">
+            <div className="max-w-4xl mx-auto">
               <ModelSelector
                 selectedModelId={selectedModelId}
                 onModelSelect={setSelectedModelId}
                 disabled={!conversationId}
               />
             </div>
-
-            <ChatWindow messages={messages} isLoading={loading} />
           </div>
 
+          {/* Chat Messages */}
+          <ChatWindow messages={messages} isLoading={loading} />
+
+          {/* Message Input */}
           <MessageComposer
             onSendMessage={handleSendMessage}
             disabled={!conversationId || !selectedModelId || loading}

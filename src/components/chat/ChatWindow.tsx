@@ -33,26 +33,28 @@ export function ChatWindow({ messages, isLoading }: ChatWindowProps) {
   }
 
   return (
-    <div className="flex-1 overflow-y-auto px-4 py-6 space-y-4">
-      {messages.map((message, index) => (
-        <MessageBubble
-          key={message.id || index}
-          message={message}
-          showLatency={message.role === 'assistant' && message.latency_ms}
-        />
-      ))}
-      {isLoading && (
-        <div className="flex justify-start">
-          <div className="bg-slate-200 dark:bg-slate-700 rounded-lg px-4 py-3 max-w-xs">
-            <div className="flex gap-2 items-center">
-              <div className="w-2 h-2 bg-slate-500 rounded-full animate-bounce" style={{ animationDelay: '0ms' }}></div>
-              <div className="w-2 h-2 bg-slate-500 rounded-full animate-bounce" style={{ animationDelay: '150ms' }}></div>
-              <div className="w-2 h-2 bg-slate-500 rounded-full animate-bounce" style={{ animationDelay: '300ms' }}></div>
+    <div className="flex-1 overflow-y-auto px-4 py-6 space-y-4 scroll-smooth">
+      <div className="max-w-4xl mx-auto w-full">
+        {messages.map((message, index) => (
+          <MessageBubble
+            key={message.id || index}
+            message={message}
+            showLatency={message.role === 'assistant' && message.latency_ms}
+          />
+        ))}
+        {isLoading && (
+          <div className="flex justify-start mb-4">
+            <div className="bg-slate-200 dark:bg-slate-700 rounded-lg px-4 py-3 max-w-xs">
+              <div className="flex gap-2 items-center">
+                <div className="w-2 h-2 bg-slate-500 rounded-full animate-bounce" style={{ animationDelay: '0ms' }}></div>
+                <div className="w-2 h-2 bg-slate-500 rounded-full animate-bounce" style={{ animationDelay: '150ms' }}></div>
+                <div className="w-2 h-2 bg-slate-500 rounded-full animate-bounce" style={{ animationDelay: '300ms' }}></div>
+              </div>
             </div>
           </div>
-        </div>
-      )}
-      <div ref={scrollRef} />
+        )}
+        <div ref={scrollRef} />
+      </div>
     </div>
   );
 }

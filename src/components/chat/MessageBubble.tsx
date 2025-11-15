@@ -19,15 +19,15 @@ export function MessageBubble({ message, showLatency }: MessageBubbleProps) {
   };
 
   return (
-    <div className={`flex ${isUser ? 'justify-end' : 'justify-start'} mb-4 animate-fade-in`}>
+    <div className={`flex ${isUser ? 'justify-end' : 'justify-start'} mb-4 animate-fade-in w-full`}>
       <div
-        className={`max-w-xs lg:max-w-md xl:max-w-lg ${
+        className={`max-w-[75%] lg:max-w-[65%] ${
           isUser
-            ? 'bg-blue-500 text-white rounded-lg rounded-tr-none'
-            : 'bg-slate-200 dark:bg-slate-700 text-slate-900 dark:text-white rounded-lg rounded-tl-none'
-        } px-4 py-3 shadow-sm hover:shadow-md transition-shadow duration-200`}
+            ? 'bg-blue-600 text-white rounded-2xl rounded-tr-md'
+            : 'bg-slate-200 dark:bg-slate-700 text-slate-900 dark:text-white rounded-2xl rounded-tl-md'
+        } px-4 py-3 shadow-sm hover:shadow-md transition-all duration-200`}
       >
-        <p className="text-sm whitespace-pre-wrap break-words">{message.content}</p>
+        <p className="text-sm leading-relaxed whitespace-pre-wrap break-words">{message.content}</p>
         <div className="flex items-center justify-between gap-3 mt-2">
           <div className="flex items-center gap-2">
             {showLatency && (
