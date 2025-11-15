@@ -8,6 +8,7 @@ import chatRoutes from './routes/chat.js';
 import endpointRoutes from './routes/endpoints.js';
 import modelRoutes from './routes/models.js';
 import metricsRoutes from './routes/metrics.js';
+import syncRoutes from './routes/sync.js';
 
 dotenv.config();
 
@@ -40,6 +41,7 @@ app.use('/api/chat', chatRoutes);
 app.use('/api/endpoints', endpointRoutes);
 app.use('/api/models', modelRoutes);
 app.use('/api/metrics', metricsRoutes);
+app.use('/api/admin', syncRoutes);
 
 app.use((err: Error, req: express.Request, res: express.Response, next: express.NextFunction) => {
   logger.error('Unhandled error:', err);

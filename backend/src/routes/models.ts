@@ -2,6 +2,7 @@ import express from 'express';
 import { supabase } from '../config/supabase.js';
 import { authenticate, requireAdmin, AuthRequest } from '../middleware/auth.js';
 import logger from '../config/logger.js';
+import { ollamaService } from '../services/ollama.js';
 
 const router = express.Router();
 
@@ -137,6 +138,57 @@ router.delete('/:id', authenticate, requireAdmin, async (req: AuthRequest, res) 
   } catch (error) {
     logger.error('Error deleting model:', error);
     res.status(500).json({ error: 'Failed to delete model' });
+  }
+});
+
+router.post('/sync/:endpointId', authenticate, requireAdmin, async (req: AuthRequest, res) => {
+  try {
+    const { endpointId } = req.params;
+
+    const { data: endpoint, error: endpointError } = await supabase
+      .from('ollama_endpoints')
+      .select('*')
+      .eq('id', endpointId)
+      .single();
+
+    if (endpointError || !endpoint) {
+      return res.status(404).json({ error: 'Endpoint not found' });
+    }
+
+    const ollamaModels = await ollamaService.fetchModels(endpoint.base_url);
+
+    const modelsToInsert = ollamaModels.map(m => ({
+      endpoint_id: endpointId,
+      name: m.name,
+      model_id: m.model || m.name,
+      size: m.size,
+      digest: m.digest,
+      modified_at: m.modified_at,
+      is_enabled: true
+    }));
+
+    const { data: syncedModels, error: syncError } = await supabase
+      .from('models')
+      .upsert(modelsToInsert, {
+        onConflict: 'endpoint_id,model_id',
+        ignoreDuplicates: false
+      })
+      .select();
+
+    if (syncError) throw syncError;
+
+    await supabase.from('audit_logs').insert({
+      user_id: req.user!.id,
+      action: 'models_synced',
+      resource_type: 'endpoint',
+      resource_id: endpointId,
+      details: { count: syncedModels?.length || 0 }
+    });
+
+    res.json({ message: 'Models synced successfully', models: syncedModels });
+  } catch (error) {
+    logger.error('Error syncing models:', error);
+    res.status(500).json({ error: 'Failed to sync models' });
   }
 });
 

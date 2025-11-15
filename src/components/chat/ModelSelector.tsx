@@ -45,7 +45,7 @@ export function ModelSelector({ selectedModelId, onModelSelect, disabled }: Mode
         className="w-full px-4 py-2.5 bg-white dark:bg-slate-700 border border-slate-200 dark:border-slate-600 rounded-lg flex items-center justify-between hover:bg-slate-50 dark:hover:bg-slate-600 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
       >
         <span className="text-sm font-medium text-slate-900 dark:text-white truncate">
-          {loading ? 'Loading models...' : selectedModel?.model_alias || selectedModel?.model_name || 'Select model'}
+          {loading ? 'Loading models...' : error ? 'Failed to fetch' : selectedModel?.name || 'Select model'}
         </span>
         <ChevronDown className="w-4 h-4 text-slate-500 dark:text-slate-400 flex-shrink-0" />
       </button>
@@ -64,14 +64,14 @@ export function ModelSelector({ selectedModelId, onModelSelect, disabled }: Mode
               }`}
             >
               <div className="text-sm font-medium text-slate-900 dark:text-white">
-                {model.model_alias || model.model_name}
+                {model.name}
               </div>
               <div className="text-xs text-slate-500 dark:text-slate-400 mt-1">
-                {model.ollama_endpoints?.name} • {model.size_gb ? `${model.size_gb}GB` : 'N/A'}
+                {model.ollama_endpoints?.name} • {model.size ? `${(model.size / 1_000_000_000).toFixed(1)}GB` : 'N/A'}
               </div>
-              {model.description && (
-                <div className="text-xs text-slate-600 dark:text-slate-300 mt-1">
-                  {model.description}
+              {model.digest && (
+                <div className="text-xs text-slate-600 dark:text-slate-300 mt-1 font-mono">
+                  {model.digest.substring(0, 16)}...
                 </div>
               )}
             </button>

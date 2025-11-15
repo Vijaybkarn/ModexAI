@@ -2,6 +2,7 @@ import express from 'express';
 import { supabase } from '../config/supabase.js';
 import { authenticate, AuthRequest } from '../middleware/auth.js';
 import logger from '../config/logger.js';
+import { ollamaService } from '../services/ollama.js';
 
 const router = express.Router();
 
@@ -82,7 +83,17 @@ router.get('/conversations/:id/messages', authenticate, async (req: AuthRequest,
 
 router.post('/', authenticate, async (req: AuthRequest, res) => {
   try {
-    const { conversation_id, model_id, message } = req.body;
+    const { conversation_id, model_id, message, stream = true } = req.body;
+
+    const { data: model, error: modelError } = await supabase
+      .from('models')
+      .select('*, ollama_endpoints(*)')
+      .eq('id', model_id)
+      .single();
+
+    if (modelError || !model) {
+      return res.status(404).json({ error: 'Model not found' });
+    }
 
     const { data: userMessage, error: messageError } = await supabase
       .from('messages')
@@ -96,11 +107,94 @@ router.post('/', authenticate, async (req: AuthRequest, res) => {
 
     if (messageError) throw messageError;
 
-    res.json({
-      message: 'Message sent successfully',
-      messageId: userMessage.id,
-      response: 'This is a mock response. Ollama integration is pending.'
-    });
+    const startTime = Date.now();
+
+    if (stream) {
+      res.setHeader('Content-Type', 'text/event-stream');
+      res.setHeader('Cache-Control', 'no-cache');
+      res.setHeader('Connection', 'keep-alive');
+
+      let fullResponse = '';
+      let tokenCount = 0;
+
+      try {
+        const streamGenerator = ollamaService.generateStream({
+          model: model.model_id,
+          prompt: message,
+          stream: true,
+          options: model.parameters || {}
+        }, model.ollama_endpoints.base_url);
+
+        for await (const chunk of streamGenerator) {
+          if (chunk.response) {
+            fullResponse += chunk.response;
+            tokenCount++;
+            res.write(`data: ${JSON.stringify({ content: chunk.response, done: chunk.done })}\n\n`);
+          }
+
+          if (chunk.done) {
+            const responseTime = Date.now() - startTime;
+
+            await supabase.from('messages').insert({
+              conversation_id,
+              role: 'assistant',
+              content: fullResponse,
+              tokens: chunk.eval_count || tokenCount
+            });
+
+            await supabase.from('usage_logs').insert({
+              user_id: req.user!.id,
+              model_id,
+              endpoint_id: model.endpoint_id,
+              tokens_used: chunk.eval_count || tokenCount,
+              response_time_ms: responseTime
+            });
+
+            res.write('data: [DONE]\n\n');
+            res.end();
+            return;
+          }
+        }
+      } catch (streamError) {
+        logger.error('Streaming error:', streamError);
+        res.write(`data: ${JSON.stringify({ error: 'Stream failed' })}\n\n`);
+        res.end();
+      }
+    } else {
+      const response = await ollamaService.generate({
+        model: model.model_id,
+        prompt: message,
+        stream: false,
+        options: model.parameters || {}
+      }, model.ollama_endpoints.base_url);
+
+      const responseTime = Date.now() - startTime;
+
+      const { data: assistantMessage } = await supabase
+        .from('messages')
+        .insert({
+          conversation_id,
+          role: 'assistant',
+          content: response.response,
+          tokens: response.eval_count
+        })
+        .select()
+        .single();
+
+      await supabase.from('usage_logs').insert({
+        user_id: req.user!.id,
+        model_id,
+        endpoint_id: model.endpoint_id,
+        tokens_used: response.eval_count || 0,
+        response_time_ms: responseTime
+      });
+
+      res.json({
+        userMessage,
+        assistantMessage,
+        response: response.response
+      });
+    }
   } catch (error) {
     logger.error('Error sending message:', error);
     res.status(500).json({ error: 'Failed to send message' });
