@@ -5,16 +5,17 @@ import { MessageBubble } from './MessageBubble';
 interface ChatWindowProps {
   messages: Message[];
   isLoading: boolean;
+  isGenerating?: boolean;
 }
 
-export function ChatWindow({ messages, isLoading }: ChatWindowProps) {
+export function ChatWindow({ messages, isLoading, isGenerating = false }: ChatWindowProps) {
   const scrollRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     scrollRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [messages]);
 
-  if (messages.length === 0 && !isLoading) {
+  if (messages.length === 0 && !isLoading && !isGenerating) {
     return (
       <div className="flex-1 flex flex-col items-center justify-center text-center px-4">
         <div className="text-slate-400 dark:text-slate-500 mb-4">
@@ -35,13 +36,19 @@ export function ChatWindow({ messages, isLoading }: ChatWindowProps) {
   return (
     <div className="flex-1 overflow-y-auto px-4 py-6 space-y-4 scroll-smooth">
       <div className="max-w-4xl mx-auto w-full">
-        {messages.map((message, index) => (
-          <MessageBubble
-            key={message.id || index}
-            message={message}
-            showLatency={message.role === 'assistant' && message.latency_ms}
-          />
-        ))}
+        {messages.map((message, index) => {
+          const isLastMessage = index === messages.length - 1;
+          const isLastAssistantGenerating = isLastMessage && message.role === 'assistant' && isGenerating;
+
+          return (
+            <MessageBubble
+              key={message.id || index}
+              message={message}
+              showLatency={message.role === 'assistant' && message.latency_ms}
+              isGenerating={isLastAssistantGenerating}
+            />
+          );
+        })}
         {isLoading && (
           <div className="flex justify-start mb-4">
             <div className="bg-slate-200 dark:bg-slate-700 rounded-lg px-4 py-3 max-w-xs">

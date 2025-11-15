@@ -22,6 +22,7 @@ export function ChatPage() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [sidebarOpen, setSidebarOpen] = useState(true);
+  const [isGenerating, setIsGenerating] = useState(false);
 
   const createNewConversation = useCallback(async () => {
     try {
@@ -96,6 +97,7 @@ export function ChatPage() {
       }
 
       const eventSource = new EventSource(sseUrl);
+      setIsGenerating(true);
 
       let assistantMessage: Message = {
         id: `temp-assistant-${Date.now()}`,
@@ -126,6 +128,7 @@ export function ChatPage() {
 
           if (data.done) {
             eventSource.close();
+            setIsGenerating(false);
             if (data.message_id) {
               assistantMessage.id = data.message_id;
             }
@@ -141,6 +144,7 @@ export function ChatPage() {
 
       eventSource.onerror = (err) => {
         eventSource.close();
+        setIsGenerating(false);
         setError('Connection lost while streaming response');
         console.error('Stream error:', err);
       };
@@ -201,25 +205,29 @@ export function ChatPage() {
             </div>
           )}
 
-          {/* Model Selector Bar */}
-          <div className="bg-white dark:bg-slate-800 border-b border-slate-200 dark:border-slate-700 px-4 py-3 shadow-sm">
-            <div className="max-w-4xl mx-auto">
-              <ModelSelector
-                selectedModelId={selectedModelId}
-                onModelSelect={setSelectedModelId}
-                disabled={!conversationId}
+          {/* Chat Messages */}
+          <ChatWindow
+            messages={messages}
+            isLoading={loading}
+            isGenerating={isGenerating}
+          />
+
+          {/* Bottom Input Area with Model Selector */}
+          <div className="bg-white dark:bg-slate-800 border-t border-slate-200 dark:border-slate-700">
+            <div className="max-w-4xl mx-auto px-4 pt-4 pb-2">
+              <MessageComposer
+                onSendMessage={handleSendMessage}
+                disabled={!conversationId || !selectedModelId || loading || isGenerating}
               />
+              <div className="mt-3 pb-2">
+                <ModelSelector
+                  selectedModelId={selectedModelId}
+                  onModelSelect={setSelectedModelId}
+                  disabled={isGenerating}
+                />
+              </div>
             </div>
           </div>
-
-          {/* Chat Messages */}
-          <ChatWindow messages={messages} isLoading={loading} />
-
-          {/* Message Input */}
-          <MessageComposer
-            onSendMessage={handleSendMessage}
-            disabled={!conversationId || !selectedModelId || loading}
-          />
         </div>
       </div>
     </div>

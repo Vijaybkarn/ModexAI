@@ -51,22 +51,17 @@ export function ModelSelector({ selectedModelId, onModelSelect, disabled }: Mode
   const selectedModel = models.find(m => m.id === selectedModelId);
 
   return (
-    <div className="relative w-full sm:max-w-sm">
-      <label className="block text-xs font-medium text-slate-600 dark:text-slate-400 mb-2">
-        AI Model
-      </label>
+    <div className="relative w-full flex items-center justify-center">
       <button
         onClick={() => setOpen(!open)}
         disabled={disabled || loading || models.length === 0}
-        className="w-full px-4 py-3 bg-white dark:bg-slate-700 border-2 border-slate-200 dark:border-slate-600 rounded-xl flex items-center justify-between hover:border-blue-400 dark:hover:border-blue-500 disabled:opacity-50 disabled:cursor-not-allowed transition-all hover:shadow-md"
+        className="px-3 py-1.5 bg-slate-100 dark:bg-slate-700 hover:bg-slate-200 dark:hover:bg-slate-600 border border-slate-300 dark:border-slate-600 rounded-lg flex items-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed transition-all text-xs"
       >
-        <div className="flex items-center gap-3 flex-1 min-w-0">
-          <div className="w-2 h-2 rounded-full bg-green-500 flex-shrink-0"></div>
-          <span className="text-sm font-medium text-slate-900 dark:text-white truncate">
-            {loading ? 'Loading models...' : error ? 'Failed to fetch' : selectedModel?.name || 'Select model'}
-          </span>
-        </div>
-        <ChevronDown className={`w-4 h-4 text-slate-500 dark:text-slate-400 flex-shrink-0 transition-transform duration-200 ${open ? 'rotate-180' : ''}`} />
+        <div className="w-1.5 h-1.5 rounded-full bg-green-500 flex-shrink-0"></div>
+        <span className="font-medium text-slate-700 dark:text-slate-300 truncate max-w-[150px]">
+          {loading ? 'Loading...' : error ? 'Error' : selectedModel?.name || 'Select model'}
+        </span>
+        <ChevronDown className={`w-3 h-3 text-slate-500 dark:text-slate-400 flex-shrink-0 transition-transform duration-200 ${open ? 'rotate-180' : ''}`} />
       </button>
 
       {open && !loading && models.length > 0 && (
@@ -75,7 +70,7 @@ export function ModelSelector({ selectedModelId, onModelSelect, disabled }: Mode
             className="fixed inset-0 z-40"
             onClick={() => setOpen(false)}
           />
-          <div className="absolute top-full left-0 right-0 mt-2 bg-white dark:bg-slate-700 border-2 border-slate-200 dark:border-slate-600 rounded-xl shadow-2xl z-50 max-h-80 overflow-y-auto animate-fade-in">
+          <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 bg-white dark:bg-slate-700 border-2 border-slate-200 dark:border-slate-600 rounded-xl shadow-2xl z-50 max-h-80 overflow-y-auto animate-fade-in min-w-[280px]">
             {models.map(model => (
               <button
                 key={model.id}

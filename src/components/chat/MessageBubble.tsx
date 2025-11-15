@@ -5,9 +5,10 @@ import { useState } from 'react';
 interface MessageBubbleProps {
   message: Message;
   showLatency?: number | null;
+  isGenerating?: boolean;
 }
 
-export function MessageBubble({ message, showLatency }: MessageBubbleProps) {
+export function MessageBubble({ message, showLatency, isGenerating = false }: MessageBubbleProps) {
   const [copied, setCopied] = useState(false);
 
   const isUser = message.role === 'user';
@@ -19,7 +20,7 @@ export function MessageBubble({ message, showLatency }: MessageBubbleProps) {
   };
 
   return (
-    <div className={`flex ${isUser ? 'justify-end' : 'justify-start'} mb-4 animate-fade-in w-full`}>
+    <div className={`flex ${isUser ? 'justify-end' : 'justify-start'} mb-4 animate-fade-in w-full group`}>
       <div
         className={`max-w-[75%] lg:max-w-[65%] ${
           isUser
@@ -41,10 +42,10 @@ export function MessageBubble({ message, showLatency }: MessageBubbleProps) {
               </span>
             )}
           </div>
-          {!isUser && (
+          {!isUser && !isGenerating && message.content && (
             <button
               onClick={handleCopy}
-              className={`p-1 rounded hover:opacity-70 transition-opacity ${
+              className={`p-1 rounded hover:bg-slate-300 dark:hover:bg-slate-600 transition-all opacity-0 group-hover:opacity-100 ${
                 isUser ? 'text-blue-100' : 'text-slate-500 dark:text-slate-400'
               }`}
               title="Copy message"
