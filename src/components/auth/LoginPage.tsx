@@ -51,7 +51,7 @@ export function LoginPage() {
         <div className="bg-white dark:bg-slate-800 rounded-2xl shadow-2xl p-8">
           <div className="flex items-center justify-center mb-8">
             <img
-              src=".public/Gosetle-Logo-ai.png"
+              src="./public/Gosetle-Logo-ai.png"
               alt="Gosetle AI"
               className="h-16 w-auto object-contain"
             />
