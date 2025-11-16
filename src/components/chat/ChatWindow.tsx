@@ -49,7 +49,7 @@ export function ChatWindow({ messages, isLoading, isGenerating = false }: ChatWi
             />
           );
         })}
-        {isGenerating && (
+        {isGenerating && (messages.length === 0 || messages[messages.length - 1]?.role !== 'assistant' || messages[messages.length - 1]?.content === '') && (
           <div className="flex justify-start mb-4 items-center gap-2">
             <span className="text-sm text-slate-600 dark:text-slate-400">Thinking</span>
             <div className="flex gap-1 items-center">
