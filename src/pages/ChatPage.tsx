@@ -23,6 +23,7 @@ export function ChatPage() {
   const [error, setError] = useState<string | null>(null);
   const [sidebarOpen, setSidebarOpen] = useState(true);
   const [isGenerating, setIsGenerating] = useState(false);
+  const [conversationListKey, setConversationListKey] = useState(0);
 
   const createNewConversation = useCallback(async () => {
     try {
@@ -50,7 +51,7 @@ export function ChatPage() {
       ]);
       setConversation(convData);
       setMessages(messagesData);
-      if (convData.model_id) {
+      if (convData.model_id && !selectedModelId) {
         setSelectedModelId(convData.model_id);
       }
     } catch (err) {
@@ -63,17 +64,29 @@ export function ChatPage() {
   useEffect(() => {
     if (conversationId) {
       loadConversation(conversationId);
-    } else if (selectedModelId) {
-      // Only auto-create conversation once a model is selected
-      createNewConversation();
     }
-  }, [conversationId, selectedModelId, loadConversation, createNewConversation]);
+  }, [conversationId, loadConversation]);
 
   const handleSendMessage = async (message: string) => {
     if (!conversationId || !selectedModelId) return;
 
     try {
       setError(null);
+
+      // Update conversation title with first message and save model_id
+      if (messages.length === 0) {
+        const truncatedMessage = message.length > 50 ? message.substring(0, 50) + '...' : message;
+        await apiRequest(`/api/conversations/${conversationId}`, {
+          method: 'PATCH',
+          body: JSON.stringify({
+            title: truncatedMessage,
+            model_id: selectedModelId
+          })
+        });
+        setConversation(prev => prev ? { ...prev, title: truncatedMessage, model_id: selectedModelId } : null);
+        setConversationListKey(prev => prev + 1);
+      }
+
       const userMessage: Message = {
         id: `temp-${Date.now()}`,
         conversation_id: conversationId,
@@ -181,6 +194,7 @@ export function ChatPage() {
           </div>
           <div className="flex-1 overflow-hidden">
             <ConversationList
+              key={conversationListKey}
               currentConversationId={conversationId}
               onConversationDeleted={() => {
                 setConversation(null);

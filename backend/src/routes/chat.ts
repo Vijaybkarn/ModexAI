@@ -81,6 +81,49 @@ router.get('/conversations/:id/messages', authenticate, async (req: AuthRequest,
   }
 });
 
+router.patch('/conversations/:id', authenticate, async (req: AuthRequest, res) => {
+  try {
+    const { title, model_id } = req.body;
+    const updates: any = {};
+
+    if (title !== undefined) updates.title = title;
+    if (model_id !== undefined) updates.model_id = model_id;
+
+    const { data: conversation, error } = await supabase
+      .from('conversations')
+      .update(updates)
+      .eq('id', req.params.id)
+      .eq('user_id', req.user!.id)
+      .select()
+      .single();
+
+    if (error) throw error;
+    if (!conversation) return res.status(404).json({ error: 'Conversation not found' });
+
+    res.json(conversation);
+  } catch (error) {
+    logger.error('Error updating conversation:', error);
+    res.status(500).json({ error: 'Failed to update conversation' });
+  }
+});
+
+router.delete('/conversations/:id', authenticate, async (req: AuthRequest, res) => {
+  try {
+    const { error } = await supabase
+      .from('conversations')
+      .delete()
+      .eq('id', req.params.id)
+      .eq('user_id', req.user!.id);
+
+    if (error) throw error;
+
+    res.status(204).send();
+  } catch (error) {
+    logger.error('Error deleting conversation:', error);
+    res.status(500).json({ error: 'Failed to delete conversation' });
+  }
+});
+
 router.post('/', authenticate, async (req: AuthRequest, res) => {
   try {
     const { conversation_id, model_id, message, stream = true } = req.body;

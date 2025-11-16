@@ -7,6 +7,7 @@ import type { Conversation } from '../../types';
 interface ConversationListProps {
   currentConversationId?: string;
   onConversationDeleted?: () => void;
+  onReloadNeeded?: () => void;
 }
 
 export function ConversationList({ currentConversationId, onConversationDeleted }: ConversationListProps) {
