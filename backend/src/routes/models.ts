@@ -8,6 +8,9 @@ const router = express.Router();
 
 router.get('/', authenticate, async (req: AuthRequest, res) => {
   try {
+    logger.info('📥 Models API: Request received');
+    logger.info(`📥 Models API: User ID: ${req.user?.id}, Email: ${req.user?.email}`);
+
     const { data: models, error } = await supabase
       .from('models')
       .select(`
@@ -22,11 +25,28 @@ router.get('/', authenticate, async (req: AuthRequest, res) => {
       .eq('is_enabled', true)
       .order('name');
 
-    if (error) throw error;
+    if (error) {
+      logger.error('❌ Models API: Database error:', error);
+      throw error;
+    }
+
+    logger.info(`✅ Models API: Found ${models?.length || 0} enabled model(s)`);
+    if (models && models.length > 0) {
+      models.forEach((m, i) => {
+        logger.info(`   ${i + 1}. ${m.name} (${m.model_id}) - Endpoint: ${m.ollama_endpoints?.name || 'Unknown'}`);
+      });
+    } else {
+      logger.warn('⚠️  Models API: No enabled models found in database');
+      logger.warn('   Possible causes:');
+      logger.warn('   1. Models haven\'t been synced yet');
+      logger.warn('   2. All models are disabled (is_enabled = false)');
+      logger.warn('   3. No endpoint is configured');
+    }
 
     res.json(models || []);
   } catch (error) {
-    logger.error('Error fetching models:', error);
+    logger.error('❌ Models API: Error fetching models:', error);
+    logger.error('   Error details:', error instanceof Error ? error.message : String(error));
     res.status(500).json({ error: 'Failed to fetch models' });
   }
 });

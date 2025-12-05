@@ -12,13 +12,22 @@ export interface AuthRequest extends Request {
 
 export async function authenticate(req: AuthRequest, res: Response, next: NextFunction) {
   try {
+    // Support both Authorization header and token query parameter (for EventSource)
+    let token: string | undefined;
+    
     const authHeader = req.headers.authorization;
-
-    if (!authHeader || !authHeader.startsWith('Bearer ')) {
-      return res.status(401).json({ error: 'Missing or invalid authorization header' });
+    if (authHeader && authHeader.startsWith('Bearer ')) {
+      token = authHeader.substring(7);
+      logger.info('🔑 Auth: Token from Authorization header');
+    } else if (req.query.token && typeof req.query.token === 'string') {
+      token = req.query.token;
+      logger.info('🔑 Auth: Token from query parameter');
     }
 
-    const token = authHeader.substring(7);
+    if (!token) {
+      logger.warn('⚠️  Auth: No token found in header or query');
+      return res.status(401).json({ error: 'Missing or invalid authorization header or token' });
+    }
 
     const { data: { user }, error } = await supabase.auth.getUser(token);
 

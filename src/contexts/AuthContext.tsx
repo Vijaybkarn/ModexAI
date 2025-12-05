@@ -79,6 +79,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   async function fetchUserProfile(authUser: User) {
     try {
+      // First, try to fetch the profile
       const { data, error } = await supabase
         .from('profiles')
         .select('*')
@@ -87,6 +88,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
       if (error) {
         console.error('Error fetching profile:', error);
+        // If it's a 404 or the profile doesn't exist, try to create it
+        if (error.code === 'PGRST116' || error.message?.includes('No rows')) {
+          await createUserProfile(authUser);
+        }
         return;
       }
 
@@ -95,13 +100,30 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         return;
       }
 
-      // If profile doesn't exist, create it (should not happen with trigger, but fallback)
+      // If profile doesn't exist (data is null), create it
+      // This can happen if the database trigger didn't fire or failed
+      await createUserProfile(authUser);
+    } catch (error) {
+      console.error('Error in fetchUserProfile:', error);
+      // Try to create profile as last resort
+      try {
+        await createUserProfile(authUser);
+      } catch (createError) {
+        console.error('Failed to create profile after error:', createError);
+      }
+    }
+  }
+
+  async function createUserProfile(authUser: User) {
+    try {
+      console.log('Creating profile for user:', authUser.id);
+      
       const { data: newProfile, error: createError } = await supabase
         .from('profiles')
         .insert({
           id: authUser.id,
-          email: authUser.email,
-          full_name: authUser.user_metadata?.full_name || authUser.email,
+          email: authUser.email || '',
+          full_name: authUser.user_metadata?.full_name || authUser.user_metadata?.name || authUser.email || 'User',
           role: 'user',
           is_active: true
         })
@@ -110,14 +132,38 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
       if (createError) {
         console.error('Error creating profile:', createError);
+        
+        // If it's a conflict error, the profile might have been created by another process
+        // Try fetching it again
+        if (createError.code === '23505' || createError.message?.includes('duplicate')) {
+          console.log('Profile already exists, fetching again...');
+          const { data: existingProfile } = await supabase
+            .from('profiles')
+            .select('*')
+            .eq('id', authUser.id)
+            .single();
+          
+          if (existingProfile) {
+            setUser(existingProfile);
+            return;
+          }
+        }
+        
+        // If RLS policy error, log it clearly
+        if (createError.message?.includes('row-level security') || createError.code === '42501') {
+          console.error('RLS policy error - profile creation blocked. Check database policies.');
+        }
+        
         return;
       }
 
       if (newProfile) {
+        console.log('Profile created successfully:', newProfile.id);
         setUser(newProfile);
       }
     } catch (error) {
-      console.error('Error in fetchUserProfile:', error);
+      console.error('Exception in createUserProfile:', error);
+      throw error;
     }
   }
 

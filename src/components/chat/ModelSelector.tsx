@@ -21,21 +21,50 @@ export function ModelSelector({ selectedModelId, onModelSelect, disabled }: Mode
 
     const fetchModels = async () => {
       try {
+        console.log('🔍 ModelSelector: Starting to fetch models...');
         setLoading(true);
+        setError(null);
+        
+        console.log('📡 ModelSelector: Making API request to /api/models');
         const data = await apiRequest<Model[]>('/api/models');
 
-        if (cancelled) return;
+        if (cancelled) {
+          console.log('⚠️  ModelSelector: Request cancelled');
+          return;
+        }
 
-        setModels(data);
+        console.log(`✅ ModelSelector: Received ${data?.length || 0} model(s) from API`);
+        
+        if (data && data.length > 0) {
+          console.log('📋 ModelSelector: Models received:');
+          data.forEach((m, i) => {
+            console.log(`   ${i + 1}. ${m.name} (ID: ${m.id}, Model ID: ${m.model_id})`);
+          });
+        } else {
+          console.warn('⚠️  ModelSelector: No models received (empty array)');
+          console.warn('   This will disable the model selector dropdown');
+        }
 
-        if (data.length > 0 && !selectedModelId) {
+        setModels(data || []);
+
+        if (data && data.length > 0 && !selectedModelId) {
+          console.log(`🎯 ModelSelector: Auto-selecting first model: ${data[0].name} (${data[0].id})`);
           onModelSelect(data[0].id);
+        } else if (!selectedModelId) {
+          console.warn('⚠️  ModelSelector: Cannot auto-select - no models available');
         }
       } catch (err) {
-        if (cancelled) return;
-        setError(err instanceof Error ? err.message : 'Failed to load models');
+        if (cancelled) {
+          console.log('⚠️  ModelSelector: Request cancelled after error');
+          return;
+        }
+        const errorMessage = err instanceof Error ? err.message : 'Failed to load models';
+        console.error('❌ ModelSelector: Error fetching models:', err);
+        console.error('   Error message:', errorMessage);
+        setError(errorMessage);
       } finally {
         if (!cancelled) {
+          console.log('🏁 ModelSelector: Fetch completed, setting loading to false');
           setLoading(false);
         }
       }
@@ -44,16 +73,32 @@ export function ModelSelector({ selectedModelId, onModelSelect, disabled }: Mode
     fetchModels();
 
     return () => {
+      console.log('🧹 ModelSelector: Cleanup - cancelling request');
       cancelled = true;
     };
   }, []);
 
   const selectedModel = models.find(m => m.id === selectedModelId);
 
+  // Log button state for debugging
+  useEffect(() => {
+    console.log('🔘 ModelSelector: Button state update:', {
+      disabled,
+      loading,
+      modelsCount: models.length,
+      isDisabled: disabled || loading || models.length === 0,
+      selectedModelId,
+      selectedModelName: selectedModel?.name || 'None'
+    });
+  }, [disabled, loading, models.length, selectedModelId, selectedModel]);
+
   return (
     <div className="relative w-full flex items-center justify-center">
       <button
-        onClick={() => setOpen(!open)}
+        onClick={() => {
+          console.log('🖱️  ModelSelector: Button clicked, opening dropdown');
+          setOpen(!open);
+        }}
         disabled={disabled || loading || models.length === 0}
         className="px-3 py-1.5 bg-slate-100 dark:bg-slate-700 hover:bg-slate-200 dark:hover:bg-slate-600 border border-slate-300 dark:border-slate-600 rounded-lg flex items-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed transition-all text-xs"
       >

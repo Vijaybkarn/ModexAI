@@ -7,7 +7,9 @@
   "scripts": {
     "dev": "node --loader ts-node/esm src/index.ts",
     "build": "tsc",
-    "start": "node dist/index.js"
+    "start": "node dist/index.js",
+    "sync-ollama": "node sync-local-ollama.js",
+    "check-models": "node check-models.js"
   },
   "dependencies": {
     "@supabase/supabase-js": "^2.57.4",

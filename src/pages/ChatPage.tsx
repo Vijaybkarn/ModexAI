@@ -68,13 +68,24 @@ export function ChatPage() {
   }, [conversationId, loadConversation]);
 
   const handleSendMessage = async (message: string) => {
-    if (!conversationId || !selectedModelId) return;
+    console.log('💬 ChatPage: handleSendMessage called');
+    console.log(`   Conversation ID: ${conversationId}`);
+    console.log(`   Selected Model ID: ${selectedModelId}`);
+    console.log(`   Message: ${message.substring(0, 50)}${message.length > 50 ? '...' : ''}`);
+    console.log(`   Current isGenerating: ${isGenerating}`);
+    
+    if (!conversationId || !selectedModelId) {
+      console.warn('⚠️  ChatPage: Cannot send - missing conversationId or selectedModelId');
+      return;
+    }
 
     try {
       setError(null);
+      console.log('🔄 ChatPage: Resetting error state');
 
       // Update conversation title with first message and save model_id
       if (messages.length === 0) {
+        console.log('📝 ChatPage: First message - updating conversation title');
         const truncatedMessage = message.length > 50 ? message.substring(0, 50) + '...' : message;
         await apiRequest(`/api/conversations/${conversationId}`, {
           method: 'PATCH',
@@ -95,6 +106,7 @@ export function ChatPage() {
         created_at: new Date().toISOString()
       };
 
+      console.log('💬 ChatPage: Adding user message to UI');
       setMessages(prev => [...prev, userMessage]);
 
       // Build the SSE URL with proper API base and token
@@ -109,8 +121,13 @@ export function ChatPage() {
         sseUrl = `${API_BASE_URL}/api/chat?conversation_id=${conversationId}&message=${encodeURIComponent(message)}&model_id=${selectedModelId}&token=${encodeURIComponent(token)}`;
       }
 
+      console.log('🔗 ChatPage: Creating EventSource connection');
+      console.log(`   URL: ${sseUrl.substring(0, 150)}...`);
+      console.log(`   Has token: ${token ? 'Yes (length: ' + token.length + ')' : 'No'}`);
+      
       const eventSource = new EventSource(sseUrl);
       setIsGenerating(true);
+      console.log('🔄 ChatPage: Set isGenerating = true');
 
       let assistantMessage: Message = {
         id: `temp-assistant-${Date.now()}`,
@@ -125,10 +142,23 @@ export function ChatPage() {
 
       eventSource.addEventListener('message', (event) => {
         try {
+          console.log('📨 ChatPage: SSE message event received');
+          
+          // Handle [DONE] marker
+          if (event.data === '[DONE]') {
+            console.log('✅ ChatPage: Stream completed ([DONE] marker)');
+            eventSource.close();
+            setIsGenerating(false);
+            console.log('🔄 ChatPage: Set isGenerating = false');
+            return;
+          }
+          
           const data = JSON.parse(event.data);
+          console.log('📦 ChatPage: Parsed data:', { hasContent: !!data.content, hasDone: !!data.done, hasError: !!data.error });
 
-          if (data.token) {
-            assistantMessage.content += data.token;
+          if (data.content) {
+            assistantMessage.content += data.content;
+            console.log(`📝 ChatPage: Updated assistant message (total length: ${assistantMessage.content.length})`);
             setMessages(prev => {
               const updated = [...prev];
               const lastMsg = updated[updated.length - 1];
@@ -140,32 +170,77 @@ export function ChatPage() {
           }
 
           if (data.done) {
+            console.log('✅ ChatPage: Stream completed (done: true)');
             eventSource.close();
             setIsGenerating(false);
+            console.log('🔄 ChatPage: Set isGenerating = false');
             if (data.message_id) {
               assistantMessage.id = data.message_id;
             }
           }
 
           if (data.error) {
+            console.error('❌ ChatPage: Stream error in data:', data.error);
             throw new Error(data.error);
           }
         } catch (err) {
-          console.error('Stream parse error:', err);
+          console.error('❌ ChatPage: Stream parse error:', err);
+          if (err instanceof Error) {
+            console.error('   Error message:', err.message);
+            console.error('   Error stack:', err.stack);
+          }
         }
       });
 
       eventSource.onerror = (err) => {
+        console.error('❌ ChatPage: EventSource error:', err);
+        console.error('   Event type:', err.type);
+        console.error('   Event target:', err.target);
+        
         eventSource.close();
         setIsGenerating(false);
-        setError('Connection lost while streaming response');
-        console.error('Stream error:', err);
+        
+        // Check if it's a connection error
+        const target = err.target as EventSource;
+        if (target.readyState === EventSource.CLOSED) {
+          console.error('   Connection closed');
+          setError('Connection lost while streaming response');
+        } else if (target.readyState === EventSource.CONNECTING) {
+          console.error('   Connection failed');
+          setError('Failed to connect to chat service');
+        }
       };
 
+      // Add open event listener for debugging
+      eventSource.onopen = () => {
+        console.log('✅ ChatPage: EventSource connection opened');
+      };
+
+      // Add message event listener for raw messages
+      eventSource.addEventListener('message', (event) => {
+        console.log('📨 ChatPage: Raw SSE message received:', event.data);
+      });
+
     } catch (err) {
+      console.error('❌ ChatPage: Exception in handleSendMessage:', err);
+      setIsGenerating(false);
+      console.log('🔄 ChatPage: Set isGenerating = false (from catch)');
       setError(err instanceof Error ? err.message : 'Failed to send message');
     }
   };
+
+  // Reset isGenerating if it gets stuck
+  useEffect(() => {
+    if (isGenerating) {
+      console.log('⏱️  ChatPage: isGenerating is true, setting timeout to reset if stuck');
+      const timeout = setTimeout(() => {
+        console.warn('⚠️  ChatPage: isGenerating stuck for 60s, resetting');
+        setIsGenerating(false);
+      }, 60000); // Reset after 60 seconds if stuck
+      
+      return () => clearTimeout(timeout);
+    }
+  }, [isGenerating]);
 
   return (
     <div className="h-screen flex flex-col bg-slate-50 dark:bg-slate-900">

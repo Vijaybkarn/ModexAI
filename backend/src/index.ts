@@ -5,6 +5,7 @@ import rateLimit from 'express-rate-limit';
 import dotenv from 'dotenv';
 import logger from './config/logger.js';
 import chatRoutes from './routes/chat.js';
+import conversationRoutes from './routes/conversations.js';
 import endpointRoutes from './routes/endpoints.js';
 import modelRoutes from './routes/models.js';
 import metricsRoutes from './routes/metrics.js';
@@ -37,11 +38,21 @@ app.get('/health', (req, res) => {
   res.json({ status: 'ok', timestamp: new Date().toISOString() });
 });
 
-app.use('/api/chat', chatRoutes);
+// Mount routes
+logger.info('🔗 Registering API routes...');
+app.use('/api/chat', chatRoutes); // Chat streaming endpoint (GET /api/chat for SSE)
+logger.info('   ✅ /api/chat - Chat routes');
+app.use('/api/conversations', conversationRoutes); // Conversations CRUD
+logger.info('   ✅ /api/conversations - Conversation routes');
 app.use('/api/endpoints', endpointRoutes);
+logger.info('   ✅ /api/endpoints - Endpoint routes');
 app.use('/api/models', modelRoutes);
+logger.info('   ✅ /api/models - Model routes');
 app.use('/api/metrics', metricsRoutes);
+logger.info('   ✅ /api/metrics - Metrics routes');
 app.use('/api/admin', syncRoutes);
+logger.info('   ✅ /api/admin - Admin routes');
+logger.info('✅ All routes registered');
 
 app.use((err: Error, req: express.Request, res: express.Response, next: express.NextFunction) => {
   logger.error('Unhandled error:', err);
