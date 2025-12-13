@@ -135,6 +135,43 @@ async function syncLocalOllama() {
       console.warn('⚠️  No models were returned from upsert operation');
     }
 
+    // 5. Disable models that no longer exist in Ollama (for this endpoint)
+    console.log('\n🧹 Cleaning up stale models...');
+    const ollamaModelIds = new Set(models.map(m => m.model || m.name));
+    
+    // Get all models for this endpoint from database
+    const { data: dbModels, error: dbModelsError } = await supabase
+      .from('models')
+      .select('id, name, model_id, is_enabled')
+      .eq('endpoint_id', endpoint.id);
+
+    if (dbModelsError) {
+      console.warn('⚠️  Could not fetch database models for cleanup:', dbModelsError.message);
+    } else if (dbModels && dbModels.length > 0) {
+      const staleModels = dbModels.filter(m => !ollamaModelIds.has(m.model_id));
+      
+      if (staleModels.length > 0) {
+        console.log(`   Found ${staleModels.length} stale model(s) to disable:`);
+        staleModels.forEach(m => {
+          console.log(`   - ${m.name} (${m.model_id})`);
+        });
+
+        const staleModelIds = staleModels.map(m => m.id);
+        const { error: disableError } = await supabase
+          .from('models')
+          .update({ is_enabled: false })
+          .in('id', staleModelIds);
+
+        if (disableError) {
+          console.warn('⚠️  Could not disable stale models:', disableError.message);
+        } else {
+          console.log(`✅ Disabled ${staleModels.length} stale model(s)`);
+        }
+      } else {
+        console.log('   ✅ No stale models found');
+      }
+    }
+
     console.log('\n🎉 Done! Models should now appear in the frontend.');
     console.log('   Refresh your browser to see them.');
 

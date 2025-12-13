@@ -197,6 +197,25 @@ router.post('/sync/:endpointId', authenticate, requireAdmin, async (req: AuthReq
 
     if (syncError) throw syncError;
 
+    // Disable models that no longer exist in Ollama (for this endpoint)
+    const ollamaModelIds = new Set(ollamaModels.map(m => m.model || m.name));
+    const { data: dbModels } = await supabase
+      .from('models')
+      .select('id, name, model_id')
+      .eq('endpoint_id', endpointId);
+
+    if (dbModels) {
+      const staleModels = dbModels.filter(m => !ollamaModelIds.has(m.model_id));
+      if (staleModels.length > 0) {
+        const staleModelIds = staleModels.map(m => m.id);
+        await supabase
+          .from('models')
+          .update({ is_enabled: false })
+          .in('id', staleModelIds);
+        logger.info(`Disabled ${staleModels.length} stale model(s) for endpoint ${endpointId}`);
+      }
+    }
+
     await supabase.from('audit_logs').insert({
       user_id: req.user!.id,
       action: 'models_synced',
